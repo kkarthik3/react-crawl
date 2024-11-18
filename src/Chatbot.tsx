@@ -13,6 +13,8 @@ interface Message {
   sender: "user" | "bot";
 }
 
+
+
 interface Car {
   name: string;
   image: string;
