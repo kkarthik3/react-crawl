@@ -1,19 +1,17 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { X, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import Draggable from "react-draggable";
 import { Resizable } from "re-resizable";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
-
 interface Message {
   type: "text" | "cars" | "form";
   content: string | null;
   sender: "user" | "bot";
+  recommendations?: string[];
 }
-
-
 
 interface Car {
   name: string;
@@ -90,24 +88,30 @@ const CustomerSupportChatbot = () => {
     }
 
     const data = await response.json();
-    return data.responses;
+    console.log(data);
+    return { response: data.responses, recommendations: data.recommedations };
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+  const handleSendMessage = async (message: string = inputMessage) => {
+    if (!message.trim()) return;
 
     setLoading(true);
     setMessages((prev) => [
       ...prev,
-      { type: "text", content: inputMessage, sender: "user" },
+      { type: "text", content: message, sender: "user" },
     ]);
     setInputMessage("");
 
     try {
-      const response = await callChatAPI(inputMessage);
+      const { response, recommendations } = await callChatAPI(message);
       setMessages((prev) => [
         ...prev,
-        { type: "text", content: response, sender: "bot" },
+        { 
+          type: "text", 
+          content: response, 
+          sender: "bot",
+          recommendations: recommendations 
+        },
       ]);
     } catch (error) {
       console.error("Error calling Chat API:", error);
@@ -161,8 +165,6 @@ const CustomerSupportChatbot = () => {
       ];
     });
   };
-
-  
 
   const handleSubmitInterest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -338,6 +340,22 @@ const CustomerSupportChatbot = () => {
                   )}
                 </div>
               ))}
+              {messages[messages.length - 1]?.sender === "bot" && messages[messages.length - 1]?.recommendations && (
+                <div className="flex flex-wrap justify-end gap-2 mt-2 w-[80%] ml-auto">
+                  {messages[messages.length - 1].recommendations?.map((recommendations, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSendMessage(recommendations)}
+                      className="bg-gray-200 text-black py-1 px-2 rounded text-sm 
+                                  border border-black 
+                                  hover:bg-gray-300 hover:border-gray-700 
+                                  transition-all duration-200 ease-in-out"
+                    >
+                      {recommendations}
+                    </button>
+                  ))}
+                </div>
+              )}
               {showButtons && (
                 <div className="flex justify-center space-x-2">
                   <button
@@ -372,7 +390,7 @@ const CustomerSupportChatbot = () => {
                   disabled={loading}
                 />
                 <button
-                  onClick={handleSendMessage}
+                  onClick={() => handleSendMessage()}
                   className="bg-black text-white py-2 px-4 rounded flex items-center"
                   disabled={loading}
                 >
@@ -407,3 +425,4 @@ const CustomerSupportChatbot = () => {
 };
 
 export default CustomerSupportChatbot;
+
