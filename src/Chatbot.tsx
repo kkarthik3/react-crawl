@@ -89,7 +89,7 @@ const CustomerSupportChatbot = () => {
 
     const data = await response.json();
     console.log(data);
-    return { response: data.responses, recommendations: data.recommedations };
+    return { response: data.responses, recommendations: data.recommendations };
   };
 
   const handleSendMessage = async (message: string = inputMessage) => {
