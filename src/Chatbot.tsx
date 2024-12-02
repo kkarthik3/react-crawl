@@ -7,10 +7,12 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
 interface Message {
-  type: "text" | "cars" | "form";
+  type: "text" | "cars" | "form" | "vehicleVariants";
   content: string | null;
   sender: "user" | "bot";
   recommendations?: string[];
+  vehicleVariants?: string[] | VehicleVariant[];
+  metadata?: string[]; // Added metadata field
 }
 
 interface Car {
@@ -19,6 +21,22 @@ interface Car {
   year: number;
   price: number;
 }
+
+interface VehicleVariant {
+  _id: string;
+  driveType: string;
+  name: string;
+  year: string;
+  image: string;
+}
+
+const TypingIndicator = () => (
+  <div className="flex items-center space-x-2 bg-gray-200 rounded-lg p-3 max-w-[80px]">
+    <div className="typing-dot"></div>
+    <div className="typing-dot animation-delay-200"></div>
+    <div className="typing-dot animation-delay-400"></div>
+  </div>
+);
 
 const CustomerSupportChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,22 +49,21 @@ const CustomerSupportChatbot = () => {
   ]);
   const [inputMessage, setInputMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showButtons, setShowButtons] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
   const [currentCarIndex, setCurrentCarIndex] = useState(0);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [cars, setCars] = useState<Car[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [inputEnabled, setInputEnabled] = useState(false)
+  const [inputEnabled, setInputEnabled] = useState(true);
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 400, height: 600 });
-
-  // Use sessionId from useRef to maintain consistency
+  
   const sessionId = useRef(uuidv4());
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping]);
 
   useEffect(() => {
     const fetchCarVariants = async () => {
@@ -86,10 +103,7 @@ const CustomerSupportChatbot = () => {
     if (!response.ok) {
       throw new Error("Failed to call Chat API");
     }
-
-    const data = await response.json();
-    console.log(data);
-    return { response: data.responses, recommendations: data.recommedations };
+    return await response.json();
   };
 
   const handleSendMessage = async (message: string = inputMessage) => {
@@ -101,20 +115,58 @@ const CustomerSupportChatbot = () => {
       { type: "text", content: message, sender: "user" },
     ]);
     setInputMessage("");
+    setIsTyping(true);
 
     try {
-      const { response, recommendations } = await callChatAPI(message);
-      setMessages((prev) => [
-        ...prev,
-        { 
-          type: "text", 
-          content: response, 
-          sender: "bot",
-          recommendations: recommendations 
-        },
-      ]);
+      const data = await callChatAPI(message);
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setIsTyping(false);
+
+      if (data.vehiclevariants && 
+          ((Array.isArray(data.vehiclevariants) && data.vehiclevariants.length > 0) || 
+           (typeof data.vehiclevariants === 'string' && data.vehiclevariants !== '[]'))) {
+        
+        if (Array.isArray(data.vehiclevariants)) {
+          setMessages((prev) => [
+            ...prev,
+            { 
+              type: "vehicleVariants", 
+              content: null, 
+              sender: "bot",
+              vehicleVariants: data.vehiclevariants
+            },
+          ]);
+        } 
+        else if (typeof data.vehiclevariants === 'string') {
+          const variants: VehicleVariant[] = JSON.parse(data.vehiclevariants);
+          setMessages((prev) => [
+            ...prev,
+            { 
+              type: "cars", 
+              content: null, 
+              sender: "bot",
+              vehicleVariants: variants
+            },
+          ]);
+        }
+      } 
+      else {
+        setMessages((prev) => [
+          ...prev,
+          { 
+            type: "text", 
+            content: data.responses || "I'm sorry, I couldn't find any specific vehicle variants for that query.", 
+            sender: "bot",
+            recommendations: data.recommendations || [],
+            metadata: data.metadata || []
+          },
+        ]);
+      }
     } catch (error) {
       console.error("Error calling Chat API:", error);
+      setIsTyping(false);
       setMessages((prev) => [
         ...prev,
         {
@@ -128,33 +180,9 @@ const CustomerSupportChatbot = () => {
     }
   };
 
-  const handleQueryClick = () => {
-    setShowButtons(false)
-    setInputEnabled(true)
-    setMessages((prev) => [
-      ...prev,
-      {
-        type: "text",
-        content: "Sure, what would you like to know?",
-        sender: "bot",
-      },
-    ]);
-  };
-
-  const handleShowCars = () => {
-    setShowButtons(false);
-    setMessages((prev) => [
-      ...prev,
-      { type: "cars", content: null, sender: "bot" },
-    ]);
-  };
-
   const handleShowInterest = () => {
     setMessages((prev) => {
-      // Check if there's already a form message in the array
       const hasForm = prev.some((message) => message.type === "form");
-  
-      // If a form message exists, return the array unchanged; otherwise, add a new form message
       if (hasForm) {
         return prev;
       }
@@ -169,17 +197,22 @@ const CustomerSupportChatbot = () => {
   const handleSubmitInterest = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post(
+      const response = await fetch(
         "https://s3bebicvlnm3dn3clqktisk7he0sgwyp.lambda-url.us-east-1.on.aws/saveInterest",
         {
-          name,
-          email,
-          car: cars[currentCarIndex]?.name || "Default Car",
-        },
-        {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email,
+            car: cars[currentCarIndex]?.name || "Default Car",
+          }),
         }
       );
+
+      if (!response.ok) {
+        throw new Error("Failed to save interest");
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -191,8 +224,7 @@ const CustomerSupportChatbot = () => {
       ]);
       setName("");
       setEmail("");
-      setShowButtons(true);
-      setInputEnabled(false);
+      setInputEnabled(true);
       setIsFormSubmitted(true);
     } catch (error) {
       console.error("Error saving interest:", error);
@@ -208,6 +240,84 @@ const CustomerSupportChatbot = () => {
     }
   };
 
+  const renderVehicleVariantButtons = (variants: string[]) => {
+    return (
+      <div className="grid grid-cols-2 gap-2 w-full">
+        {variants.map((variant, index) => (
+          <button
+            key={index}
+            onClick={() => handleSendMessage(variant)}
+            className="bg-gray-200 text-black py-2 px-4 rounded text-sm 
+                      border border-black 
+                      hover:bg-gray-300 hover:border-gray-700 
+                      transition-all duration-200 ease-in-out"
+          >
+            {variant}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderVehicleCard = (variant: VehicleVariant) => {
+    return (
+      <div className="w-full bg-white text-black shadow-lg rounded-xl">
+        <div className="p-4">
+          <img
+            src={variant.image}
+            alt={variant.name}
+            className="w-full h-40 object-cover mb-2 bg-gray-200 rounded-lg"
+          />
+          <h2 className="font-semibold text-base">{variant.name}</h2>
+          <h3 className="font-medium text-base">{variant.year}</h3>
+          <p>Drive Type: {variant.driveType}</p>
+          <button
+            onClick={handleShowInterest}
+            className="mt-2 w-full bg-black text-white py-2 px-4 rounded hover:bg-gray-800 transition-colors"
+          >
+            Show Interest
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderVehicleCards = (variants: VehicleVariant[]) => {
+    return (
+      <div className="relative w-[80%]">
+        <div className="flex overflow-x-hidden">
+          {variants.map((variant, index) => (
+            <div
+              key={index}
+              className="flex-shrink-0 w-full transition-transform duration-300 ease-in-out"
+              style={{ transform: `translateX(-${currentCarIndex * 100}%)` }}
+            >
+              {renderVehicleCard(variant)}
+            </div>
+          ))}
+        </div>
+        {variants.length > 1 && (
+          <>
+            <button
+              onClick={() => setCurrentCarIndex((prev) => (prev > 0 ? prev - 1 : variants.length - 1))}
+              className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-black text-white rounded-full p-2"
+              aria-label="Previous car"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <button
+              onClick={() => setCurrentCarIndex((prev) => (prev < variants.length - 1 ? prev + 1 : 0))}
+              className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-black text-white rounded-full p-2"
+              aria-label="Next car"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed bottom-4 right-4">
       {!isOpen && (
@@ -215,7 +325,7 @@ const CustomerSupportChatbot = () => {
           onClick={() => setIsOpen(true)}
           className="fixed bottom-4 right-5 flex items-center rounded-full bg-black text-white py-2 px-4"
         >
-          <MessageSquare className="mr-2 h-4 w-4 " /> Chat
+          <MessageSquare className="mr-2 h-4 w-4" /> Chat
         </button>
       )}
       {isOpen && (
@@ -239,6 +349,7 @@ const CustomerSupportChatbot = () => {
               <button
                 onClick={() => setIsOpen(false)}
                 className="rounded-full p-2 hover:bg-gray-200 hover:text-white bg-black transition-colors"
+                aria-label="Close chat"
               >
                 <X className="h-4 w-4 text-white" />
               </button>
@@ -253,66 +364,41 @@ const CustomerSupportChatbot = () => {
                 >
                   {msg.type === "text" && msg.content && (
                     <div
-                      className={`flex  rounded-lg p-2 max-w-[80%] text-justify ${
+                      className={`flex flex-col rounded-lg p-2 max-w-[80%] text-justify ${
                         msg.sender === "user"
                           ? "bg-black text-white"
                           : "bg-gray-200"
                       }`}
                     >
-                      {msg.content}
+                      <div>{msg.content}</div>
+                      {msg.metadata && msg.metadata.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="text-blue-500 text-sm">Sources:</span>
+                          {msg.metadata.map((item, i) => (
+                            <a
+                              key={i}
+                              href={item}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline text-sm"
+                            >
+                              [{i + 1}]
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
-                  {msg.type === "cars" &&
-                    cars.length > 0 &&
-                    cars[currentCarIndex] && (
-                      <div className="w-[80%] bg-white text-black shadow-lg rounded-xl ">
-                        <div className="p-4">
-                          <img
-                            src={cars[currentCarIndex].image}
-                            alt={cars[currentCarIndex].name}
-                            className="w-full h-40 object-cover mb-2 bg-gray-200 rounded-lg"
-                          />
-                          <h2 className="font-semibold text-base">
-                            {cars[currentCarIndex].name}
-                          </h2>
-                          <h3 className="font-medium text-base">
-                            {cars[currentCarIndex].year}
-                          </h3>
-                        </div>
-                        <div className="flex justify-between border-t p-4">
-                          <button
-                            onClick={() =>
-                              setCurrentCarIndex(
-                                (prev) => (prev - 1 + cars.length) % cars.length
-                              )
-                            }
-                            className="rounded-full p-2 hover:bg-gray-200 transition-colors"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={handleShowInterest}
-                            className="bg-black text-white py-2 px-4 rounded"
-                          >
-                            Show Interest
-                          </button>
-                          <button
-                            onClick={() =>
-                              setCurrentCarIndex(
-                                (prev) => (prev + 1) % cars.length
-                              )
-                            }
-                            className="rounded-full p-2 hover:bg-gray-200 transition-colors"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  {msg.type === "form" && !isFormSubmitted &&(
+                  {msg.type === "vehicleVariants" && msg.vehicleVariants && (
+                    renderVehicleVariantButtons(msg.vehicleVariants as string[])
+                  )}
+                  {msg.type === "cars" && msg.vehicleVariants && (
+                    renderVehicleCards(msg.vehicleVariants as VehicleVariant[])
+                  )}
+                  {msg.type === "form" && !isFormSubmitted && (
                     <form
                       onSubmit={handleSubmitInterest}
-                      className="space-y-2 w-[80%] "
+                      className="space-y-2 w-[80%]"
                     >
                       <input
                         type="text"
@@ -340,42 +426,34 @@ const CustomerSupportChatbot = () => {
                   )}
                 </div>
               ))}
-              {messages[messages.length - 1]?.sender === "bot" && messages[messages.length - 1]?.recommendations && (
-                <div className="flex flex-wrap justify-end gap-2 mt-2 w-[80%] ml-auto">
-                  {messages[messages.length - 1].recommendations?.map((recommendations, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSendMessage(recommendations)}
-                      className="bg-gray-200 text-black py-1 px-2 rounded text-sm 
-                                  border border-black 
-                                  hover:bg-gray-300 hover:border-gray-700 
-                                  transition-all duration-200 ease-in-out"
-                    >
-                      {recommendations}
-                    </button>
-                  ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <TypingIndicator />
                 </div>
               )}
-              {showButtons && (
-                <div className="flex justify-center space-x-2">
-                  <button
-                    onClick={handleQueryClick}
-                    className="bg-black text-white py-2 px-4 rounded"
-                  >
-                    Queries
-                  </button>
-                  <button
-                    onClick={handleShowCars}
-                    className="bg-black text-white py-2 px-4 rounded"
-                  >
-                    Show Cars
-                  </button>
-                </div>
-              )}
+              {messages[messages.length - 1]?.sender === "bot" &&
+                messages[messages.length - 1]?.recommendations && (
+                  <div className="flex flex-wrap justify-end gap-2 mt-2 w-[80%] ml-auto">
+                    {messages[messages.length - 1].recommendations?.map(
+                      (recommendation, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleSendMessage(recommendation)}
+                          className="bg-gray-200 text-black py-1 px-2 rounded text-sm 
+                                    border border-black 
+                                    hover:bg-gray-300 hover:border-gray-700 
+                                    transition-all duration-200 ease-in-out"
+                        >
+                          {recommendation}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
               <div ref={messagesEndRef} />
             </div>
             {inputEnabled && (
-              <div className="p-4 border-t flex space-x-2 rounded-b-xl">
+              <div className="p-4 border-t flex space-x-2">
                 <input
                   type="text"
                   placeholder="Type a message..."
@@ -383,7 +461,7 @@ const CustomerSupportChatbot = () => {
                   onChange={(e) => setInputMessage(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      handleSendMessage()
+                      handleSendMessage();
                     }
                   }}
                   className="flex-grow rounded-lg border border-gray-300 p-2"
@@ -394,11 +472,7 @@ const CustomerSupportChatbot = () => {
                   className="bg-black text-white py-2 px-4 rounded flex items-center"
                   disabled={loading}
                 >
-                  {loading ? (
-                    <div className="loader"></div>
-                  ) : (
-                    "Send"
-                  )}
+                  Send
                 </button>
               </div>
             )}
@@ -414,10 +488,35 @@ const CustomerSupportChatbot = () => {
           height: 16px;
           animation: spin 1s linear infinite;
         }
-      
+        
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        .typing-dot {
+          width: 8px;
+          height: 8px;
+          background-color: #666;
+          border-radius: 50%;
+          animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+
+        .animation-delay-200 {
+          animation-delay: 0.2s;
+        }
+
+        .animation-delay-400 {
+          animation-delay: 0.4s;
+        }
+
+        @keyframes typingAnimation {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-4px);
+          }
         }
       `}</style>
     </div>
