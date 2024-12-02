@@ -103,7 +103,10 @@ const CustomerSupportChatbot = () => {
     if (!response.ok) {
       throw new Error("Failed to call Chat API");
     }
-    return await response.json();
+
+    const data = await response.json();
+    console.log(data);
+    return { response: data.responses, recommendations: data.recommedations };
   };
 
   const handleSendMessage = async (message: string = inputMessage) => {
