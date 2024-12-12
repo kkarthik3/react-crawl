@@ -26,6 +26,7 @@ const AdminPanel: FC = () => {
       }
 
       const response = await axios.post<ApiResponse>('https://interim-cabdemo-module.ispgnet.com', {
+        mode: "no-cors",
         url: rootUrl
       }, {
         headers: {
