@@ -3,7 +3,7 @@ name: CICD
 on:
   push:
     branches:
-      - master
+      - jeep_india
 
 jobs:
   build:
@@ -14,17 +14,17 @@ jobs:
       - name: Login to Docker Hub
         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
       - name: Build Docker Image
-        run: docker build -t kkarthik31/ispg-crawler-bot .
+        run: docker build -t kkarthik31/jeep-crawler-bot .
       - name: Publish image to docker hub
-        run: docker push kkarthik31/ispg-crawler-bot:latest   
+        run: docker push kkarthik31/jeep-crawler-bot:latest   
 
   deploy: 
     needs: build
     runs-on: self-hosted    
     steps:
       - name: Pull image from docker hub
-        run: docker pull kkarthik31/ispg-crawler-bot:latest 
+        run: docker pull kkarthik31/jeep-crawler-bot:latest 
       - name: Delete Old Container
         run: docker rm -f reactContainer
       - name: Run docker container
-        run: docker run -d -p 3000:80 --name reactContainer kkarthik31/ispg-crawler-bot
+        run: docker run -d -p 3000:80 --name reactContainer kkarthik31/jeep-crawler-bot
