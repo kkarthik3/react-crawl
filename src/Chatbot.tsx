@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { X, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import Draggable from "react-draggable";
 import { Resizable } from "re-resizable";
 import { v4 as uuidv4 } from "uuid";
@@ -148,11 +148,12 @@ const CustomerSupportChatbot = () => {
         setMessages((prev) => [
           ...prev,
           {
-            type: "compareVariant",
-            content: null,
+            type: "compareVariant" ,
+            content: data.responses,
             sender: "bot",
             compare_variant: data.compare_variant,
           },
+          
         ]);
       } else {
         setMessages((prev) => [
@@ -327,7 +328,7 @@ const CustomerSupportChatbot = () => {
     );
   };
 
-  const renderCompareVariantTable = (variants: CompareVariant[]) => {
+  const renderCompareVariantTable  = (variants: CompareVariant[]) => {
     return (
       <div className="overflow-x-auto w-full">
         <table className="min-w-full bg-white border border-gray-300 rounded-lg">
@@ -353,10 +354,7 @@ const CustomerSupportChatbot = () => {
             <tr>
               <td className="py-2 px-4 border-b">Variant</td>
               {variants.map((variant) => (
-                <td
-                  key={`${variant._id}-variant`}
-                  className="py-2 px-4 border-b"
-                >
+                <td key={`${variant._id}-variant`} className="py-2 px-4 border-b">
                   {variant.variant}
                 </td>
               ))}
@@ -386,6 +384,7 @@ const CustomerSupportChatbot = () => {
       </div>
     );
   };
+  
 
   return (
     <div className="fixed bottom-4 right-4">
@@ -602,3 +601,4 @@ const CustomerSupportChatbot = () => {
 };
 
 export default CustomerSupportChatbot;
+

@@ -25,7 +25,7 @@ const AdminPanel: FC = () => {
         throw new Error('Please enter a Root URL');
       }
 
-      const response = await axios.post<ApiResponse>('https://interim-cabdemo-module.com', {
+      const response = await axios.post<ApiResponse>('https://http://interim-cabdemo-module.ispgnet.com/scrapper', {
         url: rootUrl
       }, {
         headers: {
