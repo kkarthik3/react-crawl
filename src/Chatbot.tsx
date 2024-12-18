@@ -126,7 +126,7 @@ const CustomerSupportChatbot = () => {
   }, [messages, isTyping]);
 
   const callChatAPI = async (message: string) => {
-    const response = await fetch(`http://localhost:8000/chat/`, {
+    const response = await fetch('https://interim-cab-module-api.ispgnet.com/chat/', {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
