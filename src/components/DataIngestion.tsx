@@ -29,7 +29,7 @@ export default function SmartProductSearch() {
         throw new Error("Maximum 5 URLs allowed");
       }
 
-      const response = await fetch("http://localhost:8000/", {
+      const response = await fetch("https://scrape-graph-api-dev.ispgnet.com/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -59,7 +59,7 @@ export default function SmartProductSearch() {
 
   const handleSaveToMongoDB = async (editedData: Record<string, any>) => {
     try {
-      const response = await fetch("http://localhost:8000/ingest", {
+      const response = await fetch("https://scrape-graph-api-dev.ispgnet.com/ingest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

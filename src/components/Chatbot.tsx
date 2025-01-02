@@ -1,8 +1,12 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { X, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Resizable } from "re-resizable";
 import { v4 as uuidv4 } from "uuid";
+
+interface CustomerSupportChatbotProps {
+  selectedBot: string;
+}
 
 interface Message {
   type:
@@ -95,7 +99,9 @@ function greet<T extends string>(message: T): Capitalize<T> {
   return (message.charAt(0).toUpperCase() + message.slice(1)) as Capitalize<T>;
 }
 
-const CustomerSupportChatbot = () => {
+const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
+  selectedBot,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -119,23 +125,27 @@ const CustomerSupportChatbot = () => {
     useState(0);
 
   const sessionId = useRef(uuidv4());
-  
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
   const callChatAPI = async (message: string) => {
-    const response = await fetch("https://interim-cab-module-api.ispgnet.com/chat/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        question: message,
-        session_id: sessionId.current,
-      }),
-    });
+    const response = await fetch(
+      "https://interim-cab-module-api.ispgnet.com/chat/",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: message,
+          session_id: sessionId.current,
+          collection: selectedBot,
+        }),
+      }
+    );
+
 
     if (!response.ok) {
       throw new Error("Failed to call Chat API");
@@ -891,3 +901,4 @@ const CustomerSupportChatbot = () => {
 };
 
 export default CustomerSupportChatbot;
+
