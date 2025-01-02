@@ -3,7 +3,8 @@ name: CICD
 on:
   push:
     branches:
-      - updated_interface
+      - updated_inteface
+      
 jobs:
   build:
     runs-on: ubuntu-latest
