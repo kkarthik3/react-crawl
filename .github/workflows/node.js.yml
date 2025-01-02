@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - updated_interface
-
 jobs:
   build:
     runs-on: ubuntu-latest
