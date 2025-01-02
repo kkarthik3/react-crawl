@@ -4,9 +4,9 @@ import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Resizable } from "re-resizable";
 import { v4 as uuidv4 } from "uuid";
 
-interface CustomerSupportChatbotProps {
-  selectedBot: string;
-}
+// interface CustomerSupportChatbotProps {
+//   selectedBot: string;
+// }
 
 interface Message {
   type:
@@ -99,9 +99,10 @@ function greet<T extends string>(message: T): Capitalize<T> {
   return (message.charAt(0).toUpperCase() + message.slice(1)) as Capitalize<T>;
 }
 
-const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
-  selectedBot,
-}) => {
+// const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
+//   selectedBot,
+// }) =>
+const CustomerSupportChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -141,7 +142,7 @@ const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
         body: JSON.stringify({
           question: message,
           session_id: sessionId.current,
-          collection: selectedBot,
+          // collection: selectedBot,
         }),
       }
     );

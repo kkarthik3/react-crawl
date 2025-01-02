@@ -5,8 +5,14 @@ interface BotSelectorProps {
   onBotChange: (bot: string) => void;
 }
 
+interface ApiResponse {
+  collections: string[];
+  status: string;
+}
+
 const BotSelector: React.FC<BotSelectorProps> = ({ selectedBot, onBotChange }) => {
   const [botOptions, setBotOptions] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBotOptions = async () => {
@@ -15,10 +21,18 @@ const BotSelector: React.FC<BotSelectorProps> = ({ selectedBot, onBotChange }) =
         if (!response.ok) {
           throw new Error('Failed to fetch bot options');
         }
-        const data: string[] = await response.json();
-        setBotOptions(data);
+        const data: ApiResponse = await response.json();
+        console.log('API response:', data); // Debug log
+
+        if (data && Array.isArray(data.collections)) {
+          setBotOptions(data.collections);
+        } else {
+          console.error('Unexpected data format:', data);
+          setError('Received unexpected data format from the server');
+        }
       } catch (error) {
         console.error('Error fetching bot options:', error);
+        setError('Failed to fetch bot options');
       }
     };
 
@@ -29,6 +43,10 @@ const BotSelector: React.FC<BotSelectorProps> = ({ selectedBot, onBotChange }) =
     onBotChange(event.target.value);
   };
 
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
+
   return (
     <div className="bg-white rounded-lg p-6 shadow-sm w-[65%] mb-6">
       <p className="text-gray-600 mb-4">
@@ -37,7 +55,7 @@ const BotSelector: React.FC<BotSelectorProps> = ({ selectedBot, onBotChange }) =
         The centralized platform for all your customer support bots
       </p>
       
-      <select 
+      {/* <select 
         value={selectedBot} 
         onChange={handleBotChange}
         className="w-full max-w-xs p-2 border rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -48,7 +66,7 @@ const BotSelector: React.FC<BotSelectorProps> = ({ selectedBot, onBotChange }) =
             {bot}
           </option>
         ))}
-      </select>
+      </select> */}
     </div>
   );
 };

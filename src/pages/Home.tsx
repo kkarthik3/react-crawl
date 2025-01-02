@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import CustomerSupportChatbot from '../components/Chatbot';
-import BotSelector from '../components/BotSelector.tsx';
+import BotSelector from '../components/BotSelector';
 
 const Home: React.FC = () => {
   const [selectedBot, setSelectedBot] = useState('');
@@ -16,12 +16,13 @@ const Home: React.FC = () => {
         <BookOpen className="w-8 h-8" />
         <h1 className="text-2xl font-bold">Welcome</h1>
       </div>
-      
+      <CustomerSupportChatbot />
       <BotSelector selectedBot={selectedBot} onBotChange={handleBotChange} />
 
-      <CustomerSupportChatbot selectedBot={selectedBot} />
+      {/* <CustomerSupportChatbot selectedBot={selectedBot} /> */}
     </div>
   );
 };
 
 export default Home;
+

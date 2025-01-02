@@ -69,7 +69,7 @@ export default function SmartProductSearch() {
 
       console.log(editedData);
       const data = await response.json();
-
+      console.log(data);
       if (response.ok) {
         setSuccessMessage("Data saved to MongoDB successfully!");
       } else {
