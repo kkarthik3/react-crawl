@@ -16,10 +16,10 @@ const Home: React.FC = () => {
         <BookOpen className="w-8 h-8" />
         <h1 className="text-2xl font-bold">Welcome</h1>
       </div>
-      <CustomerSupportChatbot />
+      {/* <CustomerSupportChatbot /> */}
       <BotSelector selectedBot={selectedBot} onBotChange={handleBotChange} />
 
-      {/* <CustomerSupportChatbot selectedBot={selectedBot} /> */}
+      <CustomerSupportChatbot selectedBot={selectedBot} />
     </div>
   );
 };

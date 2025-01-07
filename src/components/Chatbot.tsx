@@ -4,9 +4,9 @@ import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Resizable } from "re-resizable";
 import { v4 as uuidv4 } from "uuid";
 
-// interface CustomerSupportChatbotProps {
-//   selectedBot: string;
-// }
+interface CustomerSupportChatbotProps {
+  selectedBot: string;
+}
 
 interface Message {
   type:
@@ -99,10 +99,12 @@ function greet<T extends string>(message: T): Capitalize<T> {
   return (message.charAt(0).toUpperCase() + message.slice(1)) as Capitalize<T>;
 }
 
-// const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
-//   selectedBot,
-// }) =>
-const CustomerSupportChatbot = () => {
+
+// const CustomerSupportChatbot = () =>
+
+const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
+  selectedBot,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -133,7 +135,7 @@ const CustomerSupportChatbot = () => {
 
   const callChatAPI = async (message: string) => {
     const response = await fetch(
-      "https://interim-cab-module-api.ispgnet.com/chat/",
+      "http://localhost:8000/chat/",
       {
         method: "POST",
         headers: {
@@ -142,11 +144,11 @@ const CustomerSupportChatbot = () => {
         body: JSON.stringify({
           question: message,
           session_id: sessionId.current,
-          // collection: selectedBot,
+          collection: selectedBot,
         }),
       }
     );
-
+    console.log(message,sessionId.current,selectedBot);
 
     if (!response.ok) {
       throw new Error("Failed to call Chat API");
@@ -167,6 +169,8 @@ const CustomerSupportChatbot = () => {
 
     try {
       const data = await callChatAPI(message);
+
+      console.log(data);
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -223,7 +227,7 @@ const CustomerSupportChatbot = () => {
             type: "text",
             content:
               data.responses ||
-              "I'm sorry, I couldn't find any specific information for that query.",
+              "Make sure to select a Project from the dropdown. Please try again.",
             sender: "bot",
             recommendations: data.recommendations || [],
             metadata: data.metadata || [],
