@@ -135,7 +135,7 @@ const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
 
   const callChatAPI = async (message: string) => {
     const response = await fetch(
-      "http://localhost:8000/chat/",
+      "https://interim-cab-module-api.ispgnet.com/chat/",
       {
         method: "POST",
         headers: {
