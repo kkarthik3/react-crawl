@@ -55,7 +55,7 @@ const BotSelector: React.FC<BotSelectorProps> = ({ selectedBot, onBotChange }) =
         The centralized platform for all your customer support bots
       </p>
       
-      {/* <select 
+      <select 
         value={selectedBot} 
         onChange={handleBotChange}
         className="w-full max-w-xs p-2 border rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -66,7 +66,7 @@ const BotSelector: React.FC<BotSelectorProps> = ({ selectedBot, onBotChange }) =
             {bot}
           </option>
         ))}
-      </select> */}
+      </select>
     </div>
   );
 };
