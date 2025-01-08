@@ -4,9 +4,10 @@ import { X } from 'lucide-react'
 interface URLLoaderProps {
   maxUrls?: number
   disabled?: boolean
+  selectedProject: string
 }
 
-export default function URLLoader({ maxUrls = 5, disabled = false }: URLLoaderProps) {
+export default function URLLoader({ maxUrls = 5, disabled = false, selectedProject }: URLLoaderProps) {
   const [urls, setUrls] = useState<string[]>([''])
 
   const handleUrlChange = (index: number, value: string) => {
@@ -28,6 +29,7 @@ export default function URLLoader({ maxUrls = 5, disabled = false }: URLLoaderPr
 
   return (
     <div>
+      <h2>URL Loader for {selectedProject}</h2>
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Enter URLs (Maximum {maxUrls})
       </label>

@@ -2,14 +2,27 @@
 
 import React, { useState, FormEvent } from "react";
 import { Loader2 } from "lucide-react";
-import URLLoader from "./URLLoader.tsx";
-import VehicleDataEditor from "./VehicleDataEditor.tsx";
+import URLLoader from "./URLLoader";
+import VehicleDataEditor from "./VehicleDataEditor";
+import { toast } from "sonner";
 
 export default function SmartProductSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [vehicleData, setVehicleData] = useState<Record<string, any>>({});
   const [extractionInProgress, setExtractionInProgress] = useState(false);
+
+  const showToast = (title: string, message: string, isError: boolean) => {
+    if (isError) {
+      toast.error(message, {
+        description: title,
+      });
+    } else {
+      toast.success(message, {
+        description: title,
+      });
+    }
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -29,7 +42,7 @@ export default function SmartProductSearch() {
         throw new Error("Maximum 5 URLs allowed");
       }
 
-      const response = await fetch("https://scrape-graph-api-dev.ispgnet.com/", {
+      const response = await fetch("http://localhost:8000/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -39,46 +52,51 @@ export default function SmartProductSearch() {
 
       const data = await response.json();
 
-      console.log(data);
-
       if (response.ok) {
         setVehicleData(data);
-        setSuccessMessage("Vehicle data extracted successfully!");
+        showToast("Success", "Vehicle data extracted successfully!", false);
       } else {
         throw new Error(data.message || "Failed to extract vehicle data");
       }
     } catch (error) {
-      setSuccessMessage(
-        error instanceof Error ? error.message : "An error occurred"
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
+      showToast("Error", errorMessage, true);
     } finally {
       setIsLoading(false);
       setExtractionInProgress(false);
     }
   };
 
-  const handleSaveToMongoDB = async (editedData: Record<string, any>) => {
+  const handleSaveToMongoDB = async (
+    editedData: Record<string, any>,
+    selectedDatabase: string
+  ) => {
     try {
-      const response = await fetch("https://scrape-graph-api-dev.ispgnet.com/ingest", {
+      const response = await fetch("http://localhost:8000/ingest", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(editedData),
+        body: JSON.stringify({
+          data: editedData,
+          database: selectedDatabase,
+        }),
       });
 
       console.log(editedData);
+
       const data = await response.json();
-      console.log(data);
+
       if (response.ok) {
-        setSuccessMessage("Data saved to MongoDB successfully!");
+        showToast("Success", "Data saved to MongoDB successfully!", false);
       } else {
         throw new Error(data.message || "Failed to save data");
       }
     } catch (error) {
-      setSuccessMessage(
-        error instanceof Error ? error.message : "Failed to save data"
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save data";
+      showToast("Error", errorMessage, true);
     }
   };
 
@@ -104,11 +122,12 @@ export default function SmartProductSearch() {
           )}
         </button>
       </form>
-      {successMessage && (
-        <p className="mt-4 text-center text-green-600">{successMessage}</p>
-      )}
       {Object.keys(vehicleData).length > 0 && (
-        <VehicleDataEditor data={vehicleData} onSave={handleSaveToMongoDB} />
+        <VehicleDataEditor
+          data={vehicleData}
+          onSave={handleSaveToMongoDB}
+          showToast={showToast}
+        />
       )}
     </div>
   );

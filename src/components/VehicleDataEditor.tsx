@@ -1,23 +1,53 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Loader2, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
 import { ConfirmationDialog } from './ConfirmationDialog'
 
-interface VehicleDataEditorProps {
-  data: Record<string, any>
-  onSave: (data: Record<string, any>) => Promise<void>
+interface DatabaseResponse {
+  status: string
+  databases: string[]
 }
 
-export default function VehicleDataEditor({ data, onSave }: VehicleDataEditorProps) {
+interface VehicleDataEditorProps {
+  data: Record<string, any>
+  onSave: (data: Record<string, any>, selectedDatabase: string) => Promise<void>
+  showToast: (title: string, message: string, isError: boolean) => void
+}
+
+export default function VehicleDataEditor({ data, onSave, showToast }: VehicleDataEditorProps) {
   const [editedData, setEditedData] = useState(data)
   const [isLoading, setIsLoading] = useState(false)
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+  const [databases, setDatabases] = useState<string[]>([])
+  const [selectedDatabase, setSelectedDatabase] = useState<string>('')
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     url: string;
     variantIndex: number;
   }>({ isOpen: false, url: '', variantIndex: -1 })
+
+  const fetchDatabases = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/database')
+      const data: DatabaseResponse = await response.json()
+      if (data.status === 'success') {
+        setDatabases(data.databases)
+        if (data.databases.length > 0) {
+          setSelectedDatabase(data.databases[0])
+        }
+      } else {
+        showToast("Error", "Failed to fetch databases", true)
+      }
+    } catch (error) {
+      console.error('Error fetching databases:', error)
+      showToast("Error", "An error occurred while fetching databases", true)
+    }
+  }
+
+  useEffect(() => {
+    fetchDatabases()
+  }, [])
 
   const toggleSection = (path: string) => {
     setExpandedSections(prev => ({
@@ -34,9 +64,11 @@ export default function VehicleDataEditor({ data, onSave }: VehicleDataEditorPro
     const { url, variantIndex } = confirmDialog
     setEditedData(prev => {
       const newData = { ...prev }
-      newData[url].data = newData[url].data.filter((_, index: number) => index !== variantIndex)
-      if (newData[url].data.length === 0) {
-        delete newData[url]
+      if (newData[url]?.data) {
+        newData[url].data = newData[url].data.filter((_, index: number) => index !== variantIndex)
+        if (newData[url].data.length === 0) {
+          delete newData[url]
+        }
       }
       return newData
     })
@@ -50,14 +82,16 @@ export default function VehicleDataEditor({ data, onSave }: VehicleDataEditorPro
   ) => {
     setEditedData(prev => {
       const newData = { ...prev }
-      let current = newData[url].data[variantIndex]
-      const lastKey = path[path.length - 1]
-      
-      for (let i = 0; i < path.length - 1; i++) {
-        current = current[path[i]]
+      if (newData[url]?.data?.[variantIndex]) {
+        let current = newData[url].data[variantIndex]
+        const lastKey = path[path.length - 1]
+        
+        for (let i = 0; i < path.length - 1; i++) {
+          current = current[path[i]]
+        }
+        
+        current[lastKey] = value
       }
-      
-      current[lastKey] = value
       return newData
     })
   }
@@ -149,21 +183,68 @@ export default function VehicleDataEditor({ data, onSave }: VehicleDataEditorPro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validate selectedDatabase
+    if (!selectedDatabase) {
+        showToast("Error", "Please select a database", true)
+        return
+    }
+
+    // Validate editedData (optional, based on your requirements)
+    if (!editedData || Object.keys(editedData).length === 0) {
+        showToast("Error", "No data to save", true)
+        return
+    }
+
     setIsLoading(true)
     try {
-      await onSave(editedData)
+        // Call the onSave function and handle success
+        await onSave(editedData, selectedDatabase)
+        showToast("Success", "Data saved successfully!", false)
+
+    } catch (error) {
+        // Handle errors from onSave
+        const errorMessage = error instanceof Error ? error.message : "Failed to save data"
+        showToast("Error", errorMessage, true)
     } finally {
-      setIsLoading(false)
+        setIsLoading(false) // Ensure loading is reset
     }
+}
+
+
+  // Check if data is empty or invalid
+  if (!data || Object.keys(data).length === 0) {
+    return (
+      <div className="mt-8 text-center text-gray-500">
+        No vehicle data available to edit.
+      </div>
+    )
   }
 
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-8">
-      <h3 className="text-xl font-semibold">Edit Vehicle Data</h3>
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-semibold">Edit Vehicle Data</h3>
+        <div className="w-64">
+          <select
+            value={selectedDatabase}
+            onChange={(e) => setSelectedDatabase(e.target.value)}
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black"
+          >
+            <option value="">Select Database</option>
+            {databases.map((db) => (
+              <option key={db} value={db}>
+                {db}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {Object.entries(editedData).map(([url, urlData]: [string, any]) => (
         <div key={url} className="border rounded-lg p-4 space-y-4">
           <h4 className="font-medium text-lg break-all">{url}</h4>
-          {urlData.data.map((variant: any, variantIndex: number) => (
+          {urlData?.data?.map((variant: any, variantIndex: number) => (
             <div key={variantIndex} className="border-t pt-4 space-y-4">
               <div className="flex justify-between items-center">
                 <h5 className="font-medium">Variant {variantIndex + 1}</h5>
@@ -187,7 +268,7 @@ export default function VehicleDataEditor({ data, onSave }: VehicleDataEditorPro
       
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || !selectedDatabase}
         className="w-full bg-black text-white py-2 px-4 rounded-md hover:bg-gray-800 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isLoading ? (
@@ -209,4 +290,3 @@ export default function VehicleDataEditor({ data, onSave }: VehicleDataEditorPro
     </form>
   )
 }
-
