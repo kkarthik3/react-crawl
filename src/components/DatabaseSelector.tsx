@@ -51,7 +51,7 @@ export default function DatabaseDashboard() {
 
   const fetchDatabases = async () => {
     try {
-      const response = await fetch('http://localhost:8000/database')
+      const response = await fetch('https://scrape-graph-api-dev.ispgnet.com/database')
       const data: DatabaseResponse = await response.json()
       if (data.status === 'success') {
         setDatabases(data.databases)
@@ -72,7 +72,7 @@ export default function DatabaseDashboard() {
 
     setIsLoading(true)
     try {
-      const response = await fetch('http://localhost:8000/create_database', {
+      const response = await fetch('https://scrape-graph-api-dev.ispgnet.com/create_database', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
