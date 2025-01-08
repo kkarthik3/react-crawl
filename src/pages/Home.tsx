@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
-import { BookOpen } from 'lucide-react';
-import CustomerSupportChatbot from '../components/Chatbot';
-import BotSelector from '../components/BotSelector';
-import DatabaseSelector, { DatabaseProvider } from '../components/DatabaseSelector';
+import React from "react";
+import { BookOpen } from "lucide-react";
+import CustomerSupportChatbot from "../components/Chatbot";
+import DatabaseSelector, { DatabaseProvider } from "../components/DatabaseSelector";
 
-const Home: React.FC = () => {
-  const [selectedBot, setSelectedBot] = useState('');
-
-  const handleBotChange = (bot: string) => {
-    setSelectedBot(bot);
+interface HomeProps {
+  navbarValues: {
+    apiKey: string;
+    selectedOption: string;
   };
+}
 
+const Home: React.FC<HomeProps> = ({ navbarValues }) => {
+  console.log("vanakam,,,,,,,,,",navbarValues.selectedOption,navbarValues.apiKey);
   return (
     <DatabaseProvider>
       <div className="p-8">
@@ -20,8 +21,11 @@ const Home: React.FC = () => {
         </div>
         <div className="space-y-6">
           <DatabaseSelector />
-          <BotSelector selectedBot={selectedBot} onBotChange={handleBotChange} />
-          <CustomerSupportChatbot selectedBot={selectedBot} />
+          <CustomerSupportChatbot
+            apiKey={navbarValues.apiKey} // Use API Key from Navbar
+            selectedOption={navbarValues.selectedOption} 
+          // Use selected option from Navbar
+          />
         </div>
       </div>
     </DatabaseProvider>

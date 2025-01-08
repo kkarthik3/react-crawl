@@ -3,10 +3,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Resizable } from "re-resizable";
 import { v4 as uuidv4 } from "uuid";
+import { useDatabase } from './DatabaseSelector';
 
-interface CustomerSupportChatbotProps {
-  selectedBot: string;
-}
+
 
 interface Message {
   type:
@@ -102,9 +101,13 @@ function greet<T extends string>(message: T): Capitalize<T> {
 
 // const CustomerSupportChatbot = () =>
 
-const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
-  selectedBot,
-}) => {
+
+interface LLMmodelProps {
+  apiKey: string;
+  selectedOption: string;
+}
+
+const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOption }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -113,6 +116,7 @@ const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
       sender: "bot",
     },
   ]);
+  const { selectedDatabase } = useDatabase();
   const [inputMessage, setInputMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -140,17 +144,19 @@ const CustomerSupportChatbot: React.FC<CustomerSupportChatbotProps> = ({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          'GroqApiKey': apiKey
         },
         body: JSON.stringify({
           question: message,
           session_id: sessionId.current,
-          collection: selectedBot,
+          Database_name: selectedDatabase,
+          llm_model: selectedOption
         }),
       }
     );
-    console.log(message,sessionId.current,selectedBot);
+    console.log(message,sessionId.current,selectedDatabase,apiKey,selectedOption);
 
-    if (!response.ok) {
+    if (!response.ok) { 
       throw new Error("Failed to call Chat API");
     }
     return await response.json();

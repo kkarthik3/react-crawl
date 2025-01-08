@@ -7,6 +7,12 @@ import RAGKnowledgebase from "./pages/RAGKnowledgebase.tsx";
 
 const App: React.FC = () => {
   const [isNavOpen, setIsNavOpen] = useState(true);
+  
+  // Add state for API Key and Dropdown Selection
+  const [navbarValues, setNavbarValues] = useState({
+    apiKey: "",
+    selectedOption: "",
+  });
 
   return (
     <Router>
@@ -14,6 +20,7 @@ const App: React.FC = () => {
         <Navbar
           isOpen={isNavOpen}
           toggleMenu={() => setIsNavOpen(!isNavOpen)}
+          onValuesChange={(values) => setNavbarValues(values)} // Pass callback to Navbar
         />
         <main
           className={`flex-1 transition-all duration-300 ${
@@ -21,7 +28,7 @@ const App: React.FC = () => {
           }`}
         >
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Home navbarValues={navbarValues} />} /> {/* Pass navbarValues to Home */}
             <Route path="/productsearch" element={<Search />} />
             <Route path="/knowledgebase" element={<RAGKnowledgebase />} />
           </Routes>
