@@ -29,7 +29,7 @@ export default function VehicleDataEditor({ data, onSave, showToast }: VehicleDa
 
   const fetchDatabases = async () => {
     try {
-      const response = await fetch('http://localhost:8000/database')
+      const response = await fetch('https://scrape-graph-api-dev.ispgnet.com/database')
       const data: DatabaseResponse = await response.json()
       if (data.status === 'success') {
         setDatabases(data.databases)
