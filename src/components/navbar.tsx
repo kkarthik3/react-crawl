@@ -46,7 +46,7 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, toggleMenu, onValuesChange }) =
       </button>
       <div className="flex flex-col h-full">
         <div className="p-4">
-          <h1 className={`font-sans text-xl ${!isOpen && 'hidden'}`}>Auto Connect AI</h1>
+          <h1 className={`font-sans text-2xl ${!isOpen && 'hidden'}`}>Auto Connect AI</h1>
         </div>
         <ul className="flex-1 px-2">
           {navItems.map((item) => (

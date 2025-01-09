@@ -111,24 +111,25 @@ export default function DatabaseDashboard() {
         <h1 className="text-2xl font-semibold text-center mb-8">Knowledge Store</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {databases.map((database) => (
-            <div 
-              key={database}
-              className={`p-6 flex flex-col gap-4 hover:shadow-lg transition-shadow cursor-pointer rounded-lg
-                ${database === selectedDatabase ? 'bg-slate-800 text-white' : 'bg-white'}
-              `}
-              onClick={() => setSelectedDatabase(database)}
-            >
-              <div className="flex justify-between items-start">
-                <h2 className="text-xl font-medium">{database}</h2>
-                <span 
-                  className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800"
-                >
-                  Active
-                </span>
-              </div>
+        {databases.map((database) => (
+          <div 
+            key={database}
+            className={`p-6 flex flex-col gap-4 hover:shadow-lg transition-shadow cursor-pointer rounded-lg
+              ${database === selectedDatabase ? 'bg-slate-800 text-white' : 'bg-white'}
+            `}
+            onClick={() => setSelectedDatabase(database)}
+          >
+            <div className="flex flex-row items-center justify-between w-full space-x-2">
+              <h2 className="text-xl font-medium truncate">{database}</h2>
+              <span 
+                className={`px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap
+                  ${database === selectedDatabase ? 'bg-green-200 text-green-900' : 'bg-green-100 text-green-800'}`}
+              >
+                Active
+              </span>
             </div>
-          ))}
+          </div>
+        ))}
         </div>
 
         {/* Create Database Dialog */}

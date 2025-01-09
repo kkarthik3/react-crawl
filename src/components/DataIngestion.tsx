@@ -106,7 +106,7 @@ export default function SmartProductSearch() {
         Vehicle Data Extractor
       </h2>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <URLLoader maxUrls={5} disabled={extractionInProgress} />
+        <URLLoader maxUrls={5} disabled={extractionInProgress} selectedProject=""/>
         <button
           type="submit"
           disabled={isLoading || extractionInProgress}

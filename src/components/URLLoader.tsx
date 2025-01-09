@@ -29,7 +29,7 @@ export default function URLLoader({ maxUrls = 5, disabled = false, selectedProje
 
   return (
     <div>
-      <h2>URL Loader for {selectedProject}</h2>
+      {/* <h2>URL Loader for {selectedProject}</h2> */}
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Enter URLs (Maximum {maxUrls})
       </label>
