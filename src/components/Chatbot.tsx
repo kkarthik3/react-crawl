@@ -269,6 +269,15 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
 
   const handleSubmitInterest = async (e: React.FormEvent) => {
     e.preventDefault();
+    const currentMessage = messages[messages.length - 1];
+    const currentVariant = currentMessage?.vehicleVariants?.[currentCarIndex];
+    
+    // Ensure we have a valid VehicleVariant, not a ProductRecommendation
+    if (!currentVariant || !('model' in currentVariant)) {
+        console.error("Invalid vehicle data");
+        return;
+    }
+
     try {
       const response = await fetch(
         "https://s3bebicvlnm3dn3clqktisk7he0sgwyp.lambda-url.us-east-1.on.aws/saveInterest",
@@ -278,9 +287,7 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
           body: JSON.stringify({
             name,
             email,
-            car:
-              messages[messages.length - 1].vehicleVariants?.[currentCarIndex]
-                ?.model || "Default Car",
+            car: `${currentVariant.brand} ${currentVariant.model} ${currentVariant.variant}`,
           }),
         }
       );
@@ -293,10 +300,7 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
         ...prev,
         {
           type: "text",
-          content: `Thank you ${name}! We'll contact you at ${email} about the ${
-            messages[messages.length - 1].vehicleVariants?.[currentCarIndex]
-              ?.model
-          }.`,
+          content: `Thank you ${name}! We'll contact you at ${email} about the ${currentVariant.brand} ${currentVariant.model} ${currentVariant.variant}.`,
           sender: "bot",
         },
       ]);
