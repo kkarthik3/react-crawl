@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, Search, LibraryBig, Menu, X } from 'lucide-react';
+import { Home, Search, LibraryBig, Menu, X ,ArrowRightLeft} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface NavbarProps {
@@ -30,6 +30,7 @@ const Navbar: React.FC<NavbarProps> = ({ isOpen, toggleMenu, onValuesChange }) =
     { icon: <Home size={20} />, label: 'Home', path: '/' },
     { icon: <Search size={20} />, label: 'Product search', path: '/productsearch' },
     { icon: <LibraryBig size={20} />, label: 'Knowledgebase', path: '/Knowledgebase' },
+    { icon: <ArrowRightLeft size={20} />, label: 'Schema', path: '/Schemamapper' },
   ];
 
   const dropdownOptions = [

@@ -1,0 +1,288 @@
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, ArrowRight } from 'lucide-react';
+import axios from 'axios';
+
+const API_ROOT = 'http://localhost:8000';
+
+const SchemaMapper = () => {
+  const [sourceUrl, setSourceUrl] = useState('');
+  const [targetUrl, setTargetUrl] = useState('');
+  const [mappings, setMappings] = useState([{ 
+    source: { db: '', collection: '', path: [] },
+    target: { db: '', collection: '', path: [] }
+  }]);
+  
+  // Source state
+  const [sourceDbs, setSourceDbs] = useState([]);
+  const [sourceCollections, setSourceCollections] = useState([]);
+  const [sourceSchema, setSourceSchema] = useState(null);
+  
+  // Target state
+  const [targetDbs, setTargetDbs] = useState([]);
+  const [targetCollections, setTargetCollections] = useState([]);
+  const [targetSchema, setTargetSchema] = useState(null);
+
+  // Fetch databases when URLs change
+  useEffect(() => {
+    if (sourceUrl) fetchDatabases(sourceUrl, setSourceDbs);
+  }, [sourceUrl]);
+
+  useEffect(() => {
+    if (targetUrl) fetchDatabases(targetUrl, setTargetDbs);
+  }, [targetUrl]);
+
+  const fetchDatabases = async (url, setDbs) => {
+    try {
+      const response = await axios.post(`${API_ROOT}/api/databases`, { mongoUrl: url });
+      setDbs(response.data);
+    } catch (error) {
+      console.error('Error fetching databases:', error);
+    }
+  };
+
+  const fetchCollections = async (url, db, setCollections) => {
+    try {
+      const response = await axios.post(`${API_ROOT}/api/collections`, { 
+        mongoUrl: url,
+        database: db
+      });
+      setCollections(response.data);
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+    }
+  };
+
+  const fetchSchema = async (url, db, collection, setSchema) => {
+    try {
+      const response = await axios.post(`${API_ROOT}/api/schema`, {
+        mongoUrl: url,
+        database: db,
+        collection: collection
+      });
+      setSchema(response.data);
+    } catch (error) {
+      console.error('Error fetching schema:', error);
+    }
+  };
+
+  const getFieldPaths = (schema, currentPath = []) => {
+    let paths = [];
+    
+    Object.entries(schema).forEach(([key, value]) => {
+      const newPath = [...currentPath, key];
+      
+      if (value.type) {
+        paths.push(newPath);
+      } else if (typeof value === 'object') {
+        paths = [...paths, ...getFieldPaths(value, newPath)];
+      }
+    });
+    
+    return paths;
+  };
+
+  const updateMapping = (index, side, field, value) => {
+    const newMappings = [...mappings];
+    if (field === 'db') {
+      newMappings[index][side] = { ...newMappings[index][side], db: value, collection: '', path: [] };
+      if (side === 'source') {
+        fetchCollections(sourceUrl, value, setSourceCollections);
+      } else {
+        fetchCollections(targetUrl, value, setTargetCollections);
+      }
+    } else if (field === 'collection') {
+      newMappings[index][side] = { ...newMappings[index][side], collection: value, path: [] };
+      if (side === 'source') {
+        fetchSchema(sourceUrl, newMappings[index].source.db, value, setSourceSchema);
+      } else {
+        fetchSchema(targetUrl, newMappings[index].target.db, value, setTargetSchema);
+      }
+    } else if (field === 'path') {
+      newMappings[index][side] = { ...newMappings[index][side], path: value };
+    }
+    setMappings(newMappings);
+  };
+
+  const addMapping = () => {
+    setMappings([...mappings, { 
+      source: { db: '', collection: '', path: [] },
+      target: { db: '', collection: '', path: [] }
+    }]);
+  };
+
+  const removeMapping = (index) => {
+    setMappings(mappings.filter((_, i) => i !== index));
+  };
+
+  const saveMappings = async () => {
+    try {
+      const formattedMappings = mappings.reduce((acc, mapping) => {
+        const sourcePath = `${mapping.source.db}.${mapping.source.collection}.${mapping.source.path.join('.')}`;
+        const targetPath = `${mapping.target.db}.${mapping.target.collection}.${mapping.target.path.join('.')}`;
+        acc[sourcePath] = targetPath;
+        return acc;
+      }, {});
+
+      await axios.post(`${API_ROOT}/api/save-mapping`, {
+        mongoUrl: sourceUrl,
+        mappings: formattedMappings
+      });
+      alert('Mappings saved successfully!');
+    } catch (error) {
+      console.error('Error saving mappings:', error);
+      alert('Failed to save mappings');
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">MongoDB Schema Mapper</h1>
+      
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div>
+          <input
+            type="text"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            placeholder="Source MongoDB URL"
+            className="w-full p-2 border rounded mb-4"
+          />
+        </div>
+        <div>
+          <input
+            type="text"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="Target MongoDB URL"
+            className="w-full p-2 border rounded mb-4"
+          />
+        </div>
+      </div>
+
+      {mappings.map((mapping, index) => (
+        <div key={index} className="mb-6 p-4 border rounded bg-gray-50">
+          <div className="grid grid-cols-2 gap-4 items-start">
+            {/* Source Selection */}
+            <div>
+              <h3 className="font-semibold mb-2">Source Path</h3>
+              <select
+                value={mapping.source.db}
+                onChange={(e) => updateMapping(index, 'source', 'db', e.target.value)}
+                className="w-full p-2 border rounded mb-2"
+              >
+                <option value="">Select Database</option>
+                {sourceDbs.map(db => (
+                  <option key={db} value={db}>{db}</option>
+                ))}
+              </select>
+
+              {mapping.source.db && (
+                <select
+                  value={mapping.source.collection}
+                  onChange={(e) => updateMapping(index, 'source', 'collection', e.target.value)}
+                  className="w-full p-2 border rounded mb-2"
+                >
+                  <option value="">Select Collection</option>
+                  {sourceCollections.map(collection => (
+                    <option key={collection} value={collection}>{collection}</option>
+                  ))}
+                </select>
+              )}
+
+              {sourceSchema && (
+                <select
+                  value={mapping.source.path.join('.')}
+                  onChange={(e) => updateMapping(index, 'source', 'path', e.target.value.split('.'))}
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="">Select Field Path</option>
+                  {getFieldPaths(sourceSchema).map(path => (
+                    <option key={path.join('.')} value={path.join('.')}>{path.join('.')}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Target Selection */}
+            <div>
+              <h3 className="font-semibold mb-2">Target Path</h3>
+              <select
+                value={mapping.target.db}
+                onChange={(e) => updateMapping(index, 'target', 'db', e.target.value)}
+                className="w-full p-2 border rounded mb-2"
+              >
+                <option value="">Select Database</option>
+                {targetDbs.map(db => (
+                  <option key={db} value={db}>{db}</option>
+                ))}
+              </select>
+
+              {mapping.target.db && (
+                <select
+                  value={mapping.target.collection}
+                  onChange={(e) => updateMapping(index, 'target', 'collection', e.target.value)}
+                  className="w-full p-2 border rounded mb-2"
+                >
+                  <option value="">Select Collection</option>
+                  {targetCollections.map(collection => (
+                    <option key={collection} value={collection}>{collection}</option>
+                  ))}
+                </select>
+              )}
+
+              {targetSchema && (
+                <select
+                  value={mapping.target.path.join('.')}
+                  onChange={(e) => updateMapping(index, 'target', 'path', e.target.value.split('.'))}
+                  className="w-full p-2 border rounded"
+                >
+                  <option value="">Select Field Path</option>
+                  {getFieldPaths(targetSchema).map(path => (
+                    <option key={path.join('.')} value={path.join('.')}>{path.join('.')}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mt-4">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              {mapping.source.path.length > 0 && mapping.target.path.length > 0 && (
+                <div className="flex items-center space-x-2">
+                  <span>{mapping.source.path.join('.')}</span>
+                  <ArrowRight className="w-4 h-4" />
+                  <span>{mapping.target.path.join('.')}</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => removeMapping(index)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      ))}
+
+      <div className="flex justify-between mt-6">
+        <button
+          onClick={addMapping}
+          className="flex items-center space-x-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Add Mapping</span>
+        </button>
+
+        <button
+          onClick={saveMappings}
+          className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600"
+        >
+          Save Mappings
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default SchemaMapper;
