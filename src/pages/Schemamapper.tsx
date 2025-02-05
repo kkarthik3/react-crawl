@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, ArrowRight, Loader2 } from 'lucide-react';
 import axios from 'axios';
 
-const API_ROOT = 'http://localhost:8000';
+const API_ROOT = 'https://scrape-graph-api-dev.ispgnet.com';
 
 // Custom hook for caching API responses
 const useApiCache = () => {
