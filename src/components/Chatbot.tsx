@@ -153,7 +153,7 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
           session_id: sessionId.current,
           Database_name: selectedDatabase,
           llm_model: selectedOption,
-          test_drive_data: formData // Add test drive form data if available
+          test_drive_data: formData ?? {} // Add test drive form data if available
         }),
       }
     );
