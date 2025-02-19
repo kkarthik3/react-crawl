@@ -1,7 +1,7 @@
 import React from 'react';
 import Knowledgebase from '../components/Knowledgebase.tsx';
 import { LibraryBig } from 'lucide-react';
-
+import  GraphRAGingest  from '../components/GraphRagPDFingestion.tsx';
 const RAGKnowledgebase: React.FC = () => {
   return (
     <div className="p-8">
@@ -10,6 +10,7 @@ const RAGKnowledgebase: React.FC = () => {
         <h1 className="text-2xl font-bold">Knowledgebase</h1>
       </div>
       <Knowledgebase />
+      <GraphRAGingest />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Resizable } from "re-resizable";
 import { v4 as uuidv4 } from "uuid";
 import { useDatabase } from './DatabaseSelector';
+import TestDriveForm from "./TestDriveForm";
 
 
 
@@ -15,6 +16,7 @@ interface Message {
     | "variant_information"
     | "compare_variant"
     | "form"
+    | "test_drive_form"
     | "product_recommendation";
   content: string | null;
   sender: "user" | "bot";
@@ -25,6 +27,7 @@ interface Message {
   compare_variant?: CompareVariant[];
   product_recommendation?: ProductRecommendation[];
   metadata?: string[];
+  request_form?: boolean;
 }
 
 interface VariantInformation {
@@ -99,7 +102,6 @@ function greet<T extends string>(message: T): Capitalize<T> {
 }
 
 
-// const CustomerSupportChatbot = () =>
 
 
 interface LLMmodelProps {
@@ -137,7 +139,7 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const callChatAPI = async (message: string) => {
+  const callChatAPI = async (message: string,formData?: any) => {
     const response = await fetch(
       "https://interim-cab-module-api.ispgnet.com/chat/",
       {
@@ -150,7 +152,8 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
           question: message,
           session_id: sessionId.current,
           Database_name: selectedDatabase,
-          llm_model: selectedOption
+          llm_model: selectedOption,
+          test_drive_data: formData // Add test drive form data if available
         }),
       }
     );
@@ -182,7 +185,18 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
 
       setIsTyping(false);
 
-      if (data.vehicle_models && data.vehicle_models.length > 0) {
+      if (data.request_form) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "test_drive_form",
+            content: null,
+            sender: "bot",
+            request_form: true
+          },
+        ]);
+        setInputEnabled(false);
+      } else if (data.vehicle_models && data.vehicle_models.length > 0) {
         setMessages((prev) => [
           ...prev,
           {
@@ -254,6 +268,46 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTestDriveSubmit = async (formData: any) => {
+    try {
+      const response = await callChatAPI("test_drive_form_submitted", formData);
+      
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "text",
+          content: response.responses || "Thank you for scheduling your test drive! Our team will confirm the details shortly.",
+          sender: "bot",
+        },
+      ]);
+      
+      setInputEnabled(true);
+      setIsFormSubmitted(true);
+    } catch (error) {
+      console.error("Error submitting test drive form:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "text",
+          content: "Sorry, there was an error scheduling your test drive. Please try again later.",
+          sender: "bot",
+        },
+      ]);
+    }
+  };
+
+  const handleFormCancel = () => {
+    setInputEnabled(true);
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "text",
+        content: "No problem! Let me know if you'd like to schedule a test drive later.",
+        sender: "bot",
+      },
+    ]);
   };
 
   const handleShowInterest = () => {
@@ -771,6 +825,14 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
                           ))}
                         </div>
                       )}
+                    </div>
+                  )}
+                  {msg.type === "test_drive_form" && !isFormSubmitted && (
+                    <div className="w-full">
+                      <TestDriveForm
+                        onSubmit={handleTestDriveSubmit}
+                        onCancel={handleFormCancel}
+                      />
                     </div>
                   )}
                   {msg.type === "vehicle_models" &&

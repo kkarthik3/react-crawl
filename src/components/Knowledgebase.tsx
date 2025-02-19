@@ -70,6 +70,7 @@ const Knowledgebase: FC = () => {
           headers: { "Content-Type": "application/json" },
         }
       );
+      console.log("Sending data:", { url: rootUrl, database: selectedDatabase });
 
       setApiOutput(response.data);
       console.log(response.data);
