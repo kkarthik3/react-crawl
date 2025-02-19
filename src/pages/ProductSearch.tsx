@@ -1,6 +1,6 @@
-import React from 'react';
-import DataIngestion from '../components/DataIngestion.tsx';
-import { Search as SearchIcon } from 'lucide-react';
+import React from "react";
+import DataIngestion from "../components/DataIngestion.tsx";
+import { Search as SearchIcon } from "lucide-react";
 
 const Search: React.FC = () => {
   return (

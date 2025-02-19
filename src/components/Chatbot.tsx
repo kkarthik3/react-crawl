@@ -1,12 +1,13 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
-import { X, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useRef, use } from "react";
+import { X, MessageSquare, ChevronLeft, ChevronRight } from "lucide-react";
 import { Resizable } from "re-resizable";
 import { v4 as uuidv4 } from "uuid";
-import { useDatabase } from './DatabaseSelector';
+import { useDatabase } from "./DatabaseSelector";
 import TestDriveForm from "./TestDriveForm";
-
-
+import UserInfoForm from "./UserInfoForm";
+import AudioRecorder from "./Recorder";
+import StreamingAudioPlayer from "./Audioplayer";
 
 interface Message {
   type:
@@ -17,6 +18,7 @@ interface Message {
     | "compare_variant"
     | "form"
     | "test_drive_form"
+    | "user_info_form"
     | "product_recommendation";
   content: string | null;
   sender: "user" | "bot";
@@ -28,6 +30,17 @@ interface Message {
   product_recommendation?: ProductRecommendation[];
   metadata?: string[];
   request_form?: boolean;
+  user_info_form?: boolean;
+}
+
+interface FormPayload {
+  // Define the properties of the form data here
+  title: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  civilId: string;
 }
 
 interface VariantInformation {
@@ -101,15 +114,15 @@ function greet<T extends string>(message: T): Capitalize<T> {
   return (message.charAt(0).toUpperCase() + message.slice(1)) as Capitalize<T>;
 }
 
-
-
-
 interface LLMmodelProps {
   apiKey: string;
   selectedOption: string;
 }
 
-const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOption }) => {
+const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({
+  apiKey,
+  selectedOption,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -130,6 +143,8 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 400, height: 600 });
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [userInfoData, setUserInfoData] = useState<FormPayload | null>(null);
+  const [testDriveData, setTestDriveData] = useState<any | null>(null);
   const [currentRecommendationIndex, setCurrentRecommendationIndex] =
     useState(0);
 
@@ -139,27 +154,28 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const callChatAPI = async (message: string,formData?: any) => {
-    const response = await fetch(
-      "https://interim-cab-module-api.ispgnet.com/chat/",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          'GroqApiKey': apiKey
-        },
-        body: JSON.stringify({
-          question: message,
-          session_id: sessionId.current,
-          Database_name: selectedDatabase,
-          llm_model: selectedOption,
-          test_drive_data: formData ?? {} // Add test drive form data if available
-        }),
-      }
-    );
-    console.log(message,sessionId.current,selectedDatabase,apiKey,selectedOption);
+  const callChatAPI = async (
+    message: string,
+    testDrivePayload?: any,
+    userInfoPayload?: FormPayload
+  ) => {
+    const response = await fetch("https://interim-cab-module-api.ispgnet.com/chat/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        GroqApiKey: apiKey,
+      },
+      body: JSON.stringify({
+        question: message,
+        session_id: sessionId.current,
+        Database_name: selectedDatabase,
+        llm_model: selectedOption,
+        test_drive_data: testDrivePayload ?? {},
+        user_info_data: userInfoPayload ?? {}, // Include user info data if available
+      }),
+    });
 
-    if (!response.ok) { 
+    if (!response.ok) {
       throw new Error("Failed to call Chat API");
     }
     return await response.json();
@@ -192,7 +208,18 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
             type: "test_drive_form",
             content: null,
             sender: "bot",
-            request_form: true
+            request_form: true,
+          },
+        ]);
+        setInputEnabled(false);
+      } else if (data.user_info_form) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "user_info_form",
+            content: null,
+            sender: "bot",
+            user_info_form: true,
           },
         ]);
         setInputEnabled(false);
@@ -270,19 +297,27 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
     }
   };
 
-  const handleTestDriveSubmit = async (formData: any) => {
+  const handleTestDriveSubmit = async (testDriveFormData: any) => {
     try {
-      const response = await callChatAPI("test_drive_form_submitted", formData);
-      
+      // Store the form data in state
+      setTestDriveData(testDriveFormData);
+
+      const response = await callChatAPI(
+        "test_drive_form_submitted",
+        testDriveFormData
+      );
+
       setMessages((prev) => [
         ...prev,
         {
           type: "text",
-          content: response.responses || "Thank you for scheduling your test drive! Our team will confirm the details shortly.",
+          content:
+            response.responses ||
+            "Thank you for scheduling your test drive! Our team will confirm the details shortly.",
           sender: "bot",
         },
       ]);
-      
+
       setInputEnabled(true);
       setIsFormSubmitted(true);
     } catch (error) {
@@ -291,7 +326,46 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
         ...prev,
         {
           type: "text",
-          content: "Sorry, there was an error scheduling your test drive. Please try again later.",
+          content:
+            "Sorry, there was an error scheduling your test drive. Please try again later.",
+          sender: "bot",
+        },
+      ]);
+    }
+  };
+
+  const handleUserInfoSubmit = async (userData: FormPayload) => {
+    try {
+      // Store the form data in state
+      setUserInfoData(userData);
+
+      // Call the API with the user info data
+      const response = await callChatAPI(
+        "user_info_form_submitted",
+        undefined,
+        userData
+      );
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "text",
+          content:
+            response.responses || "Thank you for submitting your information!",
+          sender: "bot",
+        },
+      ]);
+
+      setInputEnabled(true);
+      setIsFormSubmitted(true);
+    } catch (error) {
+      console.error("Error submitting user info form:", error);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "text",
+          content:
+            "Sorry, there was an error submitting your information. Please try again later.",
           sender: "bot",
         },
       ]);
@@ -304,7 +378,8 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
       ...prev,
       {
         type: "text",
-        content: "No problem! Let me know if you'd like to schedule a test drive later.",
+        content:
+          "No problem! Let me know if you'd like to schedule a test drive later.",
         sender: "bot",
       },
     ]);
@@ -325,11 +400,11 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
     e.preventDefault();
     const currentMessage = messages[messages.length - 1];
     const currentVariant = currentMessage?.vehicleVariants?.[currentCarIndex];
-    
+
     // Ensure we have a valid VehicleVariant, not a ProductRecommendation
-    if (!currentVariant || !('model' in currentVariant)) {
-        console.error("Invalid vehicle data");
-        return;
+    if (!currentVariant || !("model" in currentVariant)) {
+      console.error("Invalid vehicle data");
+      return;
     }
 
     try {
@@ -412,7 +487,9 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
             <h2 className="font-semibold text-base">
               {variant.brand} {variant.model}
             </h2>
-            <h3 className="font-medium text-base">Variant: {variant.variant}</h3>
+            <h3 className="font-medium text-base">
+              Variant: {variant.variant}
+            </h3>
             <p>Engine: {variant.engine_type}</p>
             <p>Transmission: {variant.transmission}</p>
             <p>
@@ -420,7 +497,9 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
             </p>
             <p>
               Price: ₹
-              {(variant as VehicleVariant).price_information?.toLocaleString() ||
+              {(
+                variant as VehicleVariant
+              ).price_information?.toLocaleString() ||
                 (variant as ProductRecommendation).price}
             </p>
           </div>
@@ -764,70 +843,77 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
         </button>
       )}
       {isOpen && (
-          <Resizable
-            size={{ width: windowSize.width, height: windowSize.height }}
-            minWidth={300}
-            minHeight={400}
-            maxWidth={500}
-            maxHeight={650}
-            onResizeStop={(e, direction, ref, d) => {
-              setWindowSize({
-                width: parseFloat(ref.style.width),
-                height: parseFloat(ref.style.height),
-              });
-            }}
-            className="fixed w-80 h-[500px] flex flex-col bg-white text-black shadow-lg rounded-lg"
-          >
-            <div className="flex justify-between items-center mb-4 p-4 border-b handle bg-black rounded-t-xl">
-              <h2 className="text-lg font-semibold text-white">
-                Customer Support
-              </h2>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="rounded-full p-2 hover:bg-gray-200 hover:text-white bg-black transition-colors"
-                aria-label="Close chat"
+        <Resizable
+          size={{ width: windowSize.width, height: windowSize.height }}
+          minWidth={300}
+          minHeight={400}
+          maxWidth={500}
+          maxHeight={650}
+          onResizeStop={(e, direction, ref, d) => {
+            setWindowSize({
+              width: parseFloat(ref.style.width),
+              height: parseFloat(ref.style.height),
+            });
+          }}
+          className="fixed w-80 h-[500px] flex flex-col bg-white text-black shadow-lg rounded-lg"
+        >
+          <div className="flex justify-between items-center mb-4 p-4 border-b handle bg-black rounded-t-xl">
+            <h2 className="text-lg font-semibold text-white">
+              Customer Support
+            </h2>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="rounded-full p-2 hover:bg-gray-200 hover:text-white bg-black transition-colors"
+              aria-label="Close chat"
+            >
+              <X className="h-4 w-4 text-white" />
+            </button>
+          </div>
+          <div className="flex-grow overflow-y-auto p-4 space-y-4">
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                className={`flex ${
+                  msg.sender === "user" ? "justify-end" : "justify-start"
+                }`}
               >
-                <X className="h-4 w-4 text-white" />
-              </button>
-            </div>
-            <div className="flex-grow overflow-y-auto p-4 space-y-4">
-              {messages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`flex ${
-                    msg.sender === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  {msg.type === "text" && msg.content && (
-                    <div
-                      className={`flex flex-col rounded-lg p-2 max-w-[80%] text-justify ${
-                        msg.sender === "user"
-                          ? "bg-black text-white"
-                          : "bg-gray-200"
-                      }`}
-                    >
-                      <div>{msg.content}</div>
-                      {msg.metadata && msg.metadata.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <span className="text-blue-500 text-sm">
-                            Sources:
-                          </span>
-                          {msg.metadata.map((item, i) => (
-                            <a
-                              key={i}
-                              href={item}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:underline text-sm"
-                            >
-                              [{i + 1}]
-                            </a>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {msg.type === "test_drive_form" && !isFormSubmitted && (
+                {msg.type === "text" && msg.content && (
+                  <div
+                    className={`flex flex-col rounded-lg p-2 max-w-[80%] text-justify ${
+                      msg.sender === "user"
+                        ? "bg-black text-white"
+                        : "bg-gray-200"
+                    }`}
+                  >
+                    <div>{msg.content}</div>
+                    {msg.sender === "bot" && (
+                      <StreamingAudioPlayer
+                        text={msg.content}
+                        disabled={!msg.content}
+                        isLatestMessage={index === messages.length - 1}
+                      />
+                    )}
+                    {msg.metadata && msg.metadata.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="text-blue-500 text-sm">Sources:</span>
+                        {msg.metadata.map((item, i) => (
+                          <a
+                            key={i}
+                            href={item}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline text-sm"
+                          >
+                            [{i + 1}]
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {msg.type === "test_drive_form" &&
+                  msg.request_form &&
+                  !isFormSubmitted && (
                     <div className="w-full">
                       <TestDriveForm
                         onSubmit={handleTestDriveSubmit}
@@ -835,103 +921,115 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
                       />
                     </div>
                   )}
-                  {msg.type === "vehicle_models" &&
-                    msg.vehicle_models &&
-                    renderVehicleModelButtons(msg.vehicle_models)}
-                  {msg.type === "vehicleVariants" &&
-                    msg.vehicleVariants &&
-                    renderVehicleCards(
-                      msg.vehicleVariants,
-                      msg.product_recommendation
-                    )}
-                  {msg.type === "variant_information" &&
-                    msg.variant_information &&
-                    renderVariantInformationTable(msg.variant_information[0])}
-                  {msg.type === "compare_variant" &&
-                    msg.compare_variant &&
-                    renderCompareVariantTable(msg.compare_variant)}
-                  {msg.type === "form" && !isFormSubmitted && (
-                    <form
-                      onSubmit={handleSubmitInterest}
-                      className="space-y-2 w-[80%]"
-                    >
-                      <input
-                        type="text"
-                        placeholder="Your Name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                        className="w-full rounded-lg border border-gray-300 bg-white text-black p-2"
-                      />
-                      <input
-                        type="email"
-                        placeholder="Your Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="w-full rounded-lg border border-gray-300 bg-white text-black p-2"
-                      />
-                      <button
-                        type="submit"
-                        className="w-full bg-black text-white py-2 px-4 rounded"
-                      >
-                        Submit Interest
-                      </button>
-                    </form>
+                {msg.type === "user_info_form" &&
+                  msg.user_info_form &&
+                  !isFormSubmitted && (
+                    <div className="w-full">
+                      <UserInfoForm onSubmit={handleUserInfoSubmit} />
+                    </div>
                   )}
-                </div>
-              ))}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <TypingIndicator />
-                </div>
-              )}
-              {messages[messages.length - 1]?.sender === "bot" &&
-                messages[messages.length - 1]?.recommendations && (
-                  <div className="flex flex-wrap justify-end gap-2 mt-2 w-[80%] ml-auto">
-                    {messages[messages.length - 1].recommendations?.map(
-                      (recommendation, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleSendMessage(recommendation)}
-                          className="bg-gray-200 text-black py-1 px-2 rounded text-sm 
+                {msg.type === "vehicle_models" &&
+                  msg.vehicle_models &&
+                  renderVehicleModelButtons(msg.vehicle_models)}
+                {msg.type === "vehicleVariants" &&
+                  msg.vehicleVariants &&
+                  renderVehicleCards(
+                    msg.vehicleVariants,
+                    msg.product_recommendation
+                  )}
+                {msg.type === "variant_information" &&
+                  msg.variant_information &&
+                  renderVariantInformationTable(msg.variant_information[0])}
+                {msg.type === "compare_variant" &&
+                  msg.compare_variant &&
+                  renderCompareVariantTable(msg.compare_variant)}
+                {msg.type === "form" && !isFormSubmitted && (
+                  <form
+                    onSubmit={handleSubmitInterest}
+                    className="space-y-2 w-[80%]"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-gray-300 bg-white text-black p-2"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Your Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="w-full rounded-lg border border-gray-300 bg-white text-black p-2"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full bg-black text-white py-2 px-4 rounded"
+                    >
+                      Submit Interest
+                    </button>
+                  </form>
+                )}
+              </div>
+            ))}
+            {isTyping && (
+              <div className="flex justify-start">
+                <TypingIndicator />
+              </div>
+            )}
+            {messages[messages.length - 1]?.sender === "bot" &&
+              messages[messages.length - 1]?.recommendations && (
+                <div className="flex flex-wrap justify-end gap-2 mt-2 w-[80%] ml-auto">
+                  {messages[messages.length - 1].recommendations?.map(
+                    (recommendation, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleSendMessage(recommendation)}
+                        className="bg-gray-200 text-black py-1 px-2 rounded text-sm 
                                     border border-black 
                                     hover:bg-gray-300 hover:border-gray-700 
                                     transition-all duration-200 ease-in-out"
-                        >
-                          {recommendation}
-                        </button>
-                      )
-                    )}
-                  </div>
-                )}
-              <div ref={messagesEndRef} />
+                      >
+                        {recommendation}
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+            <div ref={messagesEndRef} />
+          </div>
+          {inputEnabled && (
+            <div className="p-4 border-t flex space-x-2">
+              <input
+                type="text"
+                placeholder="Type a message..."
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSendMessage();
+                  }
+                }}
+                className="flex-grow rounded-lg border border-gray-300 p-2"
+                disabled={loading}
+              />
+              <AudioRecorder
+                onTranscriptionComplete={(text: string) =>
+                  setInputMessage(text)
+                }
+              />
+              <button
+                onClick={() => handleSendMessage()}
+                className="bg-black text-white py-2 px-4 rounded flex items-center"
+                disabled={loading}
+              >
+                Send
+              </button>
             </div>
-            {inputEnabled && (
-              <div className="p-4 border-t flex space-x-2">
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleSendMessage();
-                    }
-                  }}
-                  className="flex-grow rounded-lg border border-gray-300 p-2"
-                  disabled={loading}
-                />
-                <button
-                  onClick={() => handleSendMessage()}
-                  className="bg-black text-white py-2 px-4 rounded flex items-center"
-                  disabled={loading}
-                >
-                  Send
-                </button>
-              </div>
-            )}
-          </Resizable>
+          )}
+        </Resizable>
       )}
       <style>{`
         .loader {
@@ -978,4 +1076,3 @@ const CustomerSupportChatbot: React.FC<LLMmodelProps> = ({ apiKey, selectedOptio
 };
 
 export default CustomerSupportChatbot;
-
