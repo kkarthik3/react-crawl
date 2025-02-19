@@ -1,18 +1,19 @@
-import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Navbar from "./components/navbar.tsx";
-import Home from "./pages/Home.tsx";
-import Search from "./pages/ProductSearch.tsx";
-import RAGKnowledgebase from "./pages/RAGKnowledgebase.tsx";
+import type React from "react"
+import { useState } from "react"
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
+import Navbar from "./components/navbar.tsx"
+import Home from "./pages/Home.tsx"
+import Search from "./pages/ProductSearch.tsx"
+import RAGKnowledgebase from "./pages/RAGKnowledgebase.tsx"
+import SchemaMapper from "./pages/Schemamapper.tsx" // Make sure this import is correct
 
 const App: React.FC = () => {
-  const [isNavOpen, setIsNavOpen] = useState(true);
-  
-  // Add state for API Key and Dropdown Selection
+  const [isNavOpen, setIsNavOpen] = useState(true)
+
   const [navbarValues, setNavbarValues] = useState({
     apiKey: "",
     selectedOption: "",
-  });
+  })
 
   return (
     <Router>
@@ -20,22 +21,19 @@ const App: React.FC = () => {
         <Navbar
           isOpen={isNavOpen}
           toggleMenu={() => setIsNavOpen(!isNavOpen)}
-          onValuesChange={(values) => setNavbarValues(values)} // Pass callback to Navbar
+          onValuesChange={(values) => setNavbarValues(values)}
         />
-        <main
-          className={`flex-1 transition-all duration-300 ${
-            isNavOpen ? "ml-64" : "ml-16"
-          }`}
-        >
+        <main className={`flex-1 transition-all duration-300 ${isNavOpen ? "ml-64" : "ml-16"}`}>
           <Routes>
-            <Route path="/" element={<Home navbarValues={navbarValues} />} /> {/* Pass navbarValues to Home */}
+            <Route path="/" element={<Home navbarValues={navbarValues} />} />
             <Route path="/productsearch" element={<Search />} />
             <Route path="/knowledgebase" element={<RAGKnowledgebase />} />
+            <Route path="/schemamapper" element={<SchemaMapper />} />
           </Routes>
         </main>
       </div>
     </Router>
-  );
-};
+  )
+}
 
-export default App;
+export default App
